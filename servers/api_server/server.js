@@ -5,7 +5,9 @@ const cert = fs.readFileSync("./ssl/cert.pem");
 const express = require("express");
 const app = express();
 const https = require("https");
-const server = https.createServer({ key, cert }, app);
+const http = require("http");
+const serverHttps = https.createServer({ key, cert }, app);
+const server = http.createServer(app);
 const glob = require("glob");
 const { Server } = require("socket.io");
 const io = new Server(server);
@@ -49,7 +51,7 @@ function startExpress() {
 	app.use(express.static("public"));
 
 	server.listen(8000, () => {
-		console.log("listening on *:8000");
+		console.log("listening on", server.address());
 	});
 
 	if (process.env.NODE_ENV === "development") {
