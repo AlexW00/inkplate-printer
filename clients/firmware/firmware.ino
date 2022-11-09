@@ -275,7 +275,7 @@ void loop() {
 
   uint64_t now = millis();
   if (now - message_timestamp > 2000) {
-    send_example_message();
+    send_register_message();
     message_timestamp = now;
   }
   return;
