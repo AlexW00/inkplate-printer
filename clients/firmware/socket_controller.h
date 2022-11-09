@@ -4,36 +4,27 @@
 #include "socket.h"
 
 void send_example_message()
-{
-  // creat JSON message for Socket.IO (event)
-  DynamicJsonDocument doc(1024);
-  JsonArray array = doc.to<JsonArray>();
-
-  // add evnet name
-  // Hint: socket.on('event_name', ....
-  array.add("example");
-
-  // add payload (parameters) for the event
-  JsonObject param1 = array.createNestedObject();
-  param1["exampleData"] = "hi";
-
-  // JSON to String (serializion)
-  String output;
-  serializeJson(doc, output);
-
-  // Send event
-  socketIO.sendEVENT(output);
-
-  // Print JSON for debugging
-  USE_SERIAL.println(output);
+{ 
+  DynamicJsonDocument data(1024);
+  data["message"] = "Hello from Arduino!";
+  send_message("example", &data);
 }
 
-void socket_loop()
+void send_message(String name, DynamicJsonDocument *data)
 {
-  _socket_loop();
+    DynamicJsonDocument doc(1024);
+    JsonArray arr = doc.to<JsonArray>();
+
+    arr.add(name);
+    if(data != nullptr) arr.add(*data);
+
+    String output;
+    serializeJson(doc, output);
+    socketIO.sendEVENT(output);
+    
+    Serial.println(output);
 }
 
-void socket_setup()
-{
-  _socket_setup();
-}
+void socket_loop() { _socket_loop(); }
+
+void socket_setup() { _socket_setup(); }
