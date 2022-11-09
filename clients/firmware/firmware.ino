@@ -1,17 +1,12 @@
 #include <Arduino.h>
 
-#include "config.h"
-
 #include "Inkplate.h"
 #include "SdFat.h" 
-
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
 
-#include <ArduinoJson.h>
-
-#include <WebSocketsClient.h>
-#include <SocketIOclient.h>
+#include "config.h"
+#include "socket_controller.h"
 
 #define USE_SERIAL Serial
 #define formatBool(b) ((b) ? "true" : "false")
@@ -41,23 +36,6 @@ long touchpad_released_time = 0;
 
 int cur_page_num = 1;
 char cur_doc_name[255];
-
-SocketIOclient socketIO;
-
-void setup_wifi()
-{
-Serial.println("Setup: WiFi");
-    // Connect to Wi-Fi network with SSID and password
-    WiFi.config(local_ip, gateway, subnet, dns1, dns2);
-
-    WiFi.begin(SSID, PASSWORD);
-    while (WiFi.status() != WL_CONNECTED) {
-        delay(500);
-        Serial.print(".");
-    }
-    Serial.println("Setup: WiFi connected");
-}
-
 
 void enter_deep_sleep()
 {
@@ -277,78 +255,18 @@ void load_cur_doc_info () {
     cur_page_num = 1;
 }
 
-void socketIOEvent(socketIOmessageType_t type, uint8_t * payload, size_t length) {
-    switch(type) {
-        case sIOtype_DISCONNECT:
-            USE_SERIAL.printf("[IOc] Disconnected!\n");
-            break;
-        case sIOtype_CONNECT:
-            USE_SERIAL.printf("[IOc] Connected to url: %s\n", payload);
-
-            // join default namespace (no auto join in Socket.IO V3)
-            socketIO.send(sIOtype_CONNECT, "/");
-            break;
-        case sIOtype_EVENT:
-        {
-            char * sptr = NULL;
-            int id = strtol((char *)payload, &sptr, 10);
-            USE_SERIAL.printf("[IOc] get event: %s id: %d\n", payload, id);
-            if(id) {
-                payload = (uint8_t *)sptr;
-            }
-            DynamicJsonDocument doc(1024);
-            DeserializationError error = deserializeJson(doc, payload, length);
-            if(error) {
-                USE_SERIAL.print(F("deserializeJson() failed: "));
-                USE_SERIAL.println(error.c_str());
-                return;
-            }
-
-            String eventName = doc[0];
-            USE_SERIAL.printf("[IOc] event name: %s\n", eventName.c_str());
-
-            // Message Includes a ID for a ACK (callback)
-            if(id) {
-                // creat JSON message for Socket.IO (ack)
-                DynamicJsonDocument docOut(1024);
-                JsonArray array = docOut.to<JsonArray>();
-
-                // add payload (parameters) for the ack (callback function)
-                JsonObject param1 = array.createNestedObject();
-                param1["now"] = millis();
-
-                // JSON to String (serializion)
-                String output;
-                output += id;
-                serializeJson(docOut, output);
-
-                // Send event
-                socketIO.send(sIOtype_ACK, output);
-            }
-        }
-            break;
-        case sIOtype_ACK:
-            USE_SERIAL.printf("[IOc] get ack: %u\n", length);
-            break;
-        case sIOtype_ERROR:
-            USE_SERIAL.printf("[IOc] get error: %u\n", length);
-            break;
-        case sIOtype_BINARY_EVENT:
-            USE_SERIAL.printf("[IOc] get binary: %u\n", length);
-            break;
-        case sIOtype_BINARY_ACK:
-            USE_SERIAL.printf("[IOc] get binary ack: %u\n", length);
-            break;
-    }
-}
-
-void setup_websocket()
+void setup_wifi()
 {
-  // server address, port and URL
-  socketIO.begin("192.168.2.104", 8000, "/socket.io/?EIO=4");
+Serial.println("Setup: WiFi");
+    // Connect to Wi-Fi network with SSID and password
+    WiFi.config(local_ip, gateway, subnet, dns1, dns2);
 
-  // event handler
-  socketIO.onEvent(socketIOEvent);
+    WiFi.begin(SSID, PASSWORD);
+    while (WiFi.status() != WL_CONNECTED) {
+        delay(500);
+        Serial.print(".");
+    }
+    Serial.println("Setup: WiFi connected");
 }
 
 void setup()
@@ -368,8 +286,8 @@ void setup()
 
     setup_wifi();
     mac_addr = WiFi.macAddress();
-    
-    setup_websocket();
+  
+    socket_setup();
 
     // Init SD card. Display if SD card is init properly or not.
     if (display.sdCardInit())
@@ -378,49 +296,24 @@ void setup()
     } else 
     {
       display.println("SD Card ERROR!");
-    }
-
+    }  
     //request_doc_routine();
     //enter_deep_sleep();
 }
 
-unsigned long messageTimestamp = 0;
+unsigned long message_timestamp = 0;
 
 void loop()
 {
-    //touchpad_routine();
+  //touchpad_routine();
+  socket_loop();
 
-    socketIO.loop();
-
-    uint64_t now = millis();
-
-    if(now - messageTimestamp > 2000) 
-    {
-      messageTimestamp = now;
-
-      // creat JSON message for Socket.IO (event)
-      DynamicJsonDocument doc(1024);
-      JsonArray array = doc.to<JsonArray>();
-
-      // add evnet name
-      // Hint: socket.on('event_name', ....
-      array.add("example");
-
-      // add payload (parameters) for the event
-      JsonObject param1 = array.createNestedObject();
-      param1["now"] = (uint32_t) now;
-
-      // JSON to String (serializion)
-      String output;
-      serializeJson(doc, output);
-
-      // Send event
-      socketIO.sendEVENT(output);
-
-      // Print JSON for debugging
-      USE_SERIAL.println(output);
-    }
-
+  uint64_t now = millis();
+  if(now - message_timestamp > 2000) 
+  {
+    send_example_message();
+    message_timestamp =  now;
+  }
     return;
 
     if(check_new_doc_while_idle)
