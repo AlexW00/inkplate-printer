@@ -1,0 +1,25 @@
+{
+	"files.associations": {
+		"__locale": "cpp",
+		"atomic": "cpp",
+		"bit": "cpp",
+		"codecvt": "cpp",
+		"compare": "cpp",
+		"cstddef": "cpp",
+		"filesystem": "cpp",
+		"ios": "cpp",
+		"limits": "cpp",
+		"locale": "cpp",
+		"new": "cpp",
+		"string": "cpp",
+		"type_traits": "cpp",
+		"variant": "cpp",
+		"support": "cpp",
+		"condition_variable": "cpp",
+		"list": "cpp",
+		"optional": "cpp",
+		"memory": "cpp",
+		"mutex": "cpp",
+		"functional": "cpp"
+	}
+}
